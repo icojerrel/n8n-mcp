@@ -15,6 +15,11 @@ n8n-mcp is a comprehensive documentation and knowledge server that provides AI a
 - 2,709 workflow templates with 100% metadata coverage
 - 265 AI-capable tool variants detected
 
+**Ecosystem Integration**:
+- **n8n-mcp** (this repo): Provides the MCP server with 18 tools for accessing n8n data
+- **n8n-skills**: Provides 7 Claude Code skills teaching HOW to use those tools effectively
+- Together they enable AI assistants to build production-ready n8n workflows
+
 ### Current Architecture:
 ```
 src/
@@ -873,6 +878,104 @@ N8N_MCP_MAX_SESSIONS=100             # Max concurrent sessions
 - **Node Count**: 1,084 nodes (537 core + 547 community)
 - **Template Count**: 2,709 workflow templates
 - **Supported Node Types**: 265 AI tool variants detected
+
+## Related Projects: n8n Skills Ecosystem
+
+### n8n-skills (Complementary Claude Code Skills)
+
+**Repository:** [czlonkowski/n8n-skills](https://github.com/czlonkowski/n8n-skills)
+**Website:** [n8n-skills.com](https://www.n8n-skills.com/)
+
+Seven complementary Claude Code skills that teach AI assistants how to build production-ready n8n workflows using n8n-mcp. These skills provide **expert guidance on HOW to use MCP tools** effectively.
+
+**The 7 Skills:**
+
+1. **n8n Expression Syntax**
+   - Teaches correct `{{}}` pattern usage and common mistakes
+   - Core variables: `$json`, `$node`, `$now`, `$env`
+   - Critical detail: webhook data is under `$json.body`
+   - Activates when: writing expressions, using {{}} syntax, accessing variables
+
+2. **n8n MCP Tools Expert** ⭐ (HIGHEST PRIORITY)
+   - Guides effective use of all 18 n8n-mcp tools
+   - Tool selection strategies and nodeType formats
+   - Validation profiles and auto-sanitization
+   - Activates when: searching nodes, validating configs, accessing templates
+
+3. **n8n Workflow Patterns**
+   - 5 proven architectural patterns from 2,653+ templates
+   - Patterns: webhook processing, HTTP API, database, AI, scheduled workflows
+   - Real-world examples and best practices
+   - Activates when: creating workflows, connecting nodes, designing automation
+
+4. **n8n Validation Expert**
+   - Interpret and resolve validation errors
+   - Handle false positives and profile selection
+   - Auto-fix capabilities and manual intervention guidance
+   - Activates when: validation fails, debugging workflows
+
+5. **n8n Node Configuration**
+   - Property dependencies and operation-aware setup
+   - 8 AI connection types for LangChain nodes
+   - Node-specific configuration patterns
+   - Activates when: configuring nodes, setting up properties
+
+6. **n8n Code JavaScript**
+   - JavaScript implementation in Code nodes
+   - Data access patterns (`$input`, `$json`)
+   - Top 5 error patterns with solutions
+   - Activates when: writing JavaScript code nodes
+
+7. **n8n Code Python**
+   - Python coding with awareness of limitations
+   - External libraries (pandas, requests) **cannot be used**
+   - Built-in libraries and workarounds
+   - Activates when: writing Python code nodes
+
+**Key Integration Points:**
+- Works seamlessly with n8n-mcp MCP server
+- Skills activate automatically based on query context
+- Multiple skills can activate simultaneously
+- Most common tool usage: `search_nodes → get_node` (18s avg between steps)
+- Most used workflow tool: `n8n_update_partial_workflow` (38,287 uses, 99% success)
+
+**Installation Methods:**
+```bash
+# Claude Code
+/plugin install czlonkowski/n8n-skills
+
+# Claude.ai
+# Upload zipped skill folders via Settings
+
+# Manual
+git clone https://github.com/czlonkowski/n8n-skills
+cp -r n8n-skills/skills/* ~/.claude/skills/
+```
+
+**Statistics:**
+- 525+ nodes covered
+- 2,653+ templates analyzed
+- Proven workflow patterns
+- Real-world validation scenarios
+
+### Other n8n Skills Projects
+
+**haunchen/n8n-skills** - Alternative automation skill pack
+Repository: [haunchen/n8n-skills](https://github.com/haunchen/n8n-skills)
+- 545 nodes coverage
+- 20 curated templates
+- Direct workflow operation focus
+
+**RedcoatAsher/n8n-skills-redux** - Workflow hardening skills
+Repository: [RedcoatAsher/n8n-skills-redux](https://github.com/RedcoatAsher/n8n-skills-redux)
+- 5 complementary skills
+- Automatic workflow hardening
+- Security-focused patterns
+
+**WilkoMarketing/antigravity-n8n-skills** - Google Antigravity port
+Repository: [WilkoMarketing/antigravity-n8n-skills](https://github.com/WilkoMarketing/antigravity-n8n-skills)
+- Ported from n8n-skills for Claude
+- Adapted for Google Antigravity platform
 
 ## Key Files to Know
 
