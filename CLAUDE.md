@@ -972,10 +972,240 @@ Repository: [RedcoatAsher/n8n-skills-redux](https://github.com/RedcoatAsher/n8n-
 - Automatic workflow hardening
 - Security-focused patterns
 
-**WilkoMarketing/antigravity-n8n-skills** - Google Antigravity port
+- **WilkoMarketing/antigravity-n8n-skills** - Google Antigravity port
 Repository: [WilkoMarketing/antigravity-n8n-skills](https://github.com/WilkoMarketing/antigravity-n8n-skills)
 - Ported from n8n-skills for Claude
 - Adapted for Google Antigravity platform
+
+## Enterprise Workflow Generation: Gap Analysis
+
+### Current Enterprise Readiness: 52% (Moderate)
+
+The n8n-mcp system provides strong fundamentals for workflow generation but requires additional enterprise features for fault-tolerant, production-grade deployments.
+
+### Strengths (What We Have) 🟢
+
+**1. Performance Optimization (90%)**
+- LRU caching for frequent queries
+- FTS5 full-text search indexes
+- Batch processing for bulk operations
+- Comprehensive benchmarking suite
+- Diff-based updates (80-90% token savings)
+
+**2. Testing Infrastructure (85%)**
+- 3,336+ unit tests with 85%+ coverage
+- Integration tests for n8n API
+- E2E workflow testing
+- CI/CD pipeline with automated testing
+- Test factories for data generation
+
+**3. Security (67%)**
+- Input validation and sanitization
+- SSRF protection for external requests
+- Timing-safe credential comparison
+- Workflow sanitization (removes sensitive data)
+- Zod schema validation
+
+**4. CI/CD Integration (70%)**
+- Automated test runs on commits
+- Type checking and linting
+- Multi-profile validation (minimal/runtime/ai-friendly/strict)
+- GitHub Actions integration
+
+### Critical Gaps (What's Missing) 🔴
+
+**1. SLA Monitoring (12%)**
+- ❌ No availability tracking
+- ❌ No error budget monitoring
+- ❌ No SLA dashboards
+- ❌ No uptime guarantees
+- ✅ Has: Basic performance monitoring
+
+**2. Disaster Recovery (33%)**
+- ❌ No automated backups
+- ❌ No multi-region failover
+- ❌ No disaster recovery procedures
+- ❌ No backup restoration testing
+- ✅ Has: Session persistence (single-instance)
+
+**3. Compliance & Governance (25%)**
+- ❌ No immutable audit logs
+- ❌ No encryption at rest
+- ❌ No GDPR compliance features
+- ❌ No SOC2/ISO27001 controls
+- ❌ No compliance reporting
+- ✅ Has: Basic telemetry (opt-out supported)
+
+**4. Error Handling & Resilience (50%)**
+- ❌ No exponential backoff for retries
+- ❌ No circuit breaker pattern
+- ❌ No bulkhead isolation
+- ❌ No graceful degradation
+- ✅ Has: Error processing and validation
+- ✅ Has: Auto-fix capabilities
+
+**5. Monitoring & Observability (50%)**
+- ❌ No distributed tracing
+- ❌ No Prometheus metrics
+- ❌ No log aggregation
+- ❌ No APM integration
+- ✅ Has: Performance monitoring
+- ✅ Has: Event tracking
+
+### Top 10 Priority Gaps for Enterprise Workflows
+
+| Priority | Gap | Severity | Effort | Impact |
+|----------|-----|----------|--------|--------|
+| 1 | No exponential backoff for API retries | HIGH | LOW | API reliability |
+| 2 | No circuit breaker pattern | HIGH | LOW | System resilience |
+| 3 | No comprehensive audit logging | HIGH | HIGH | Compliance |
+| 4 | No automated backups | CRITICAL | HIGH | Data loss prevention |
+| 5 | No encryption at rest | CRITICAL | HIGH | Data security |
+| 6 | No SLA tracking framework | CRITICAL | MEDIUM | Service guarantees |
+| 7 | No distributed tracing | MEDIUM | MEDIUM | Debugging complex flows |
+| 8 | No Prometheus metrics | MEDIUM | LOW | Monitoring integration |
+| 9 | No multi-region failover | CRITICAL | HIGH | High availability |
+| 10 | No compliance reporting | HIGH | MEDIUM | Regulatory requirements |
+
+### Enterprise Deployment Checklist
+
+Before deploying n8n-mcp for enterprise workflows:
+
+**Pre-Production (MUST)**
+- [ ] Enable telemetry or set up alternative monitoring
+- [ ] Configure automated backups for SQLite database
+- [ ] Set up session persistence for zero-downtime deployments
+- [ ] Implement rate limiting on HTTP endpoints
+- [ ] Configure proper logging (JSON format for aggregation)
+- [ ] Set up health check endpoints
+- [ ] Enable HTTPS with valid certificates
+- [ ] Configure authentication tokens
+- [ ] Test workflow validation with `n8n_validate_workflow`
+- [ ] Run security scan on deployed workflows
+
+**Production Hardening (SHOULD)**
+- [ ] Implement exponential backoff for n8n API calls
+- [ ] Add circuit breaker for external dependencies
+- [ ] Set up distributed tracing (OpenTelemetry)
+- [ ] Configure Prometheus metrics export
+- [ ] Implement comprehensive audit logging
+- [ ] Set up log aggregation (ELK/Splunk)
+- [ ] Configure multi-region failover
+- [ ] Implement encryption at rest for sensitive data
+- [ ] Set up SLA monitoring and alerting
+- [ ] Create runbooks for incident response
+
+**Compliance & Governance (REGULATED INDUSTRIES)**
+- [ ] Enable immutable audit logs
+- [ ] Implement data retention policies
+- [ ] Set up GDPR compliance features (data deletion)
+- [ ] Configure role-based access control (RBAC)
+- [ ] Implement SOC2/ISO27001 controls
+- [ ] Set up compliance reporting dashboards
+- [ ] Enable workflow approval processes
+- [ ] Configure change management procedures
+- [ ] Implement data classification and tagging
+- [ ] Set up security scanning for credentials
+
+### Recommended Enterprise Architecture
+
+For fault-tolerant enterprise deployments:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Load Balancer (HA)                      │
+│                  (AWS ALB / NGINX / HAProxy)                │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                ┌─────────────┴─────────────┐
+                │                           │
+┌───────────────▼───────────────┐ ┌────────▼──────────────────┐
+│  n8n-mcp Instance 1 (Primary) │ │ n8n-mcp Instance 2 (DR)   │
+│  - HTTP Server Mode           │ │ - HTTP Server Mode        │
+│  - Session Persistence        │ │ - Session Persistence     │
+│  - Telemetry Enabled          │ │ - Telemetry Enabled       │
+└───────────────┬───────────────┘ └────────┬──────────────────┘
+                │                          │
+                └──────────┬───────────────┘
+                           │
+┌──────────────────────────▼──────────────────────────────────┐
+│              SQLite Database (Replicated)                   │
+│              - Automated Backups (hourly)                   │
+│              - Point-in-time Recovery                       │
+│              - Encryption at Rest                           │
+└─────────────────────────────────────────────────────────────┘
+                           │
+┌──────────────────────────▼──────────────────────────────────┐
+│              Monitoring & Observability Stack               │
+│  - Prometheus (Metrics)    - Jaeger (Tracing)              │
+│  - Grafana (Dashboards)    - ELK (Logs)                    │
+│  - PagerDuty (Alerting)    - Sentry (Error Tracking)       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Remediation Roadmap
+
+**Phase 1: Immediate (1-2 weeks)**
+- Implement exponential backoff for API retries
+- Add circuit breaker pattern
+- Set up basic Prometheus metrics
+- Configure automated backups
+- Implement comprehensive error logging
+
+**Phase 2: Short-term (1-2 months)**
+- Add distributed tracing (OpenTelemetry)
+- Implement audit logging with immutability
+- Set up SLA monitoring framework
+- Configure multi-region deployment
+- Add encryption at rest
+
+**Phase 3: Long-term (3-6 months)**
+- Build compliance reporting features
+- Implement GDPR compliance tools
+- Set up SOC2/ISO27001 controls
+- Create disaster recovery automation
+- Build workflow approval processes
+
+**Estimated Total Effort**: 1,200-1,800 engineering hours
+
+### Current Best Practices (Use These Now)
+
+While waiting for enterprise features:
+
+1. **Always validate before deploying**: Use `validate_workflow` + `n8n_validate_workflow`
+2. **Use auto-fix cautiously**: Review `n8n_autofix_workflow` changes before production
+3. **Prefer partial updates**: Use `n8n_update_partial_workflow` over full replacements
+4. **Enable telemetry**: Or set up custom monitoring
+5. **Test in staging**: Always test workflows in non-production environment
+6. **Use strict validation**: Set `profile='strict'` for production workflows
+7. **Monitor API usage**: Track n8n API rate limits and errors
+8. **Implement retry logic**: Add retry nodes in critical workflow paths
+9. **Use error workflows**: Configure n8n error workflows for failures
+10. **Document workflows**: Use workflow descriptions and node notes
+
+### Risk Mitigation Strategies
+
+**High-Risk Workflows (Financial, Healthcare, Legal):**
+- ⚠️ **DO NOT** deploy without manual review
+- ⚠️ **DO NOT** auto-fix validation errors blindly
+- ⚠️ **DO** use `profile='strict'` validation
+- ⚠️ **DO** implement manual approval gates
+- ⚠️ **DO** maintain audit trail of all changes
+- ⚠️ **DO** test with realistic data in staging
+- ⚠️ **DO** implement rollback procedures
+
+**Medium-Risk Workflows (Internal Tools, Automation):**
+- ✅ Use `n8n_validate_workflow` before deployment
+- ✅ Review auto-fix suggestions before applying
+- ✅ Use `profile='ai-friendly'` validation
+- ✅ Test with representative data
+- ✅ Monitor execution results
+
+**Low-Risk Workflows (Prototypes, Development):**
+- ✅ Use `validate_workflow` for quick checks
+- ✅ Auto-fix is acceptable for minor issues
+- ✅ Use `profile='runtime'` validation
+- ✅ Iterate quickly with `n8n_update_partial_workflow`
 
 ## Key Files to Know
 
