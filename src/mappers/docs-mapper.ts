@@ -43,7 +43,13 @@ export class DocsMapper {
       `docs/integrations/builtin/app-nodes/n8n-nodes-base.${nodeName}/index.md`,
       `docs/integrations/builtin/trigger-nodes/n8n-nodes-base.${nodeName}/index.md`,
       `docs/integrations/builtin/cluster-nodes/root-nodes/n8n-nodes-langchain.${nodeName}/index.md`,
-      `docs/integrations/builtin/cluster-nodes/sub-nodes/n8n-nodes-langchain.${nodeName}/index.md`
+      `docs/integrations/builtin/cluster-nodes/sub-nodes/n8n-nodes-langchain.${nodeName}/index.md`,
+      // Directory with README.md (current n8n-docs convention)
+      `docs/integrations/builtin/core-nodes/n8n-nodes-base.${nodeName}/README.md`,
+      `docs/integrations/builtin/app-nodes/n8n-nodes-base.${nodeName}/README.md`,
+      `docs/integrations/builtin/trigger-nodes/n8n-nodes-base.${nodeName}/README.md`,
+      `docs/integrations/builtin/cluster-nodes/root-nodes/n8n-nodes-langchain.${nodeName}/README.md`,
+      `docs/integrations/builtin/cluster-nodes/sub-nodes/n8n-nodes-langchain.${nodeName}/README.md`
     ];
     
     // Try each path

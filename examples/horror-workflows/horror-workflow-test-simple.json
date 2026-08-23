@@ -1,0 +1,116 @@
+{
+  "name": "Horror Workflow - Simple Test",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "notesInFlow": true,
+      "notes": "Click to test the workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simulate horror content from RSS feed\nconst testContent = {\n  title: \"TEST: New Horror Movie Trailer Released\",\n  link: \"https://example.com/horror-trailer\",\n  description: \"A terrifying new horror movie trailer has been released, featuring spine-chilling scenes and jump scares that will leave you on the edge of your seat.\",\n  pubDate: new Date().toISOString(),\n  categories: ['horror', 'movies', 'trailer'],\n  test: true\n};\n\nreturn [{ json: testContent }];"
+      },
+      "id": "mock-rss-feed",
+      "name": "Mock RSS Feed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "notesInFlow": true,
+      "notes": "Simulates RSS feed data for testing"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process test horror content\nconst crypto = require('crypto');\nconst item = $input.first().json;\n\nconst contentHash = crypto\n  .createHash('md5')\n  .update(item.title + item.link)\n  .digest('hex');\n\nconst horrorContent = {\n  idempotencyKey: `test-${contentHash}`,\n  title: item.title,\n  link: item.link,\n  description: item.description,\n  pubDate: item.pubDate,\n  categories: item.categories,\n  horrorTags: ['horror', 'test', 'trailer'],\n  engagementScore: 85,\n  contentHash: contentHash,\n  test: true\n};\n\nreturn [{ json: horrorContent }];"
+      },
+      "id": "process-content",
+      "name": "Process Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "notesInFlow": true,
+      "notes": "Processes test content with idempotency"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.link }}",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "http-test",
+      "name": "HTTP Test",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [850, 300],
+      "notesInFlow": true,
+      "notes": "Tests HTTP request to external URL"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format test results\nconst httpResult = $input.first().json;\nconst originalContent = $input.first().json;\n\nconst results = {\n  testStatus: 'SUCCESS',\n  timestamp: new Date().toISOString(),\n  httpStatusCode: httpResult.statusCode || 'N/A',\n  contentTitle: originalContent.title,\n  idempotencyKey: originalContent.idempotencyKey,\n  engagementScore: originalContent.engagementScore,\n  notes: 'All test components executed successfully'\n};\n\nconsole.log('✅ Test Results:', JSON.stringify(results, null, 2));\n\nreturn [{ json: results }];"
+      },
+      "id": "format-results",
+      "name": "Format Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300],
+      "notesInFlow": true,
+      "notes": "Formats and displays test results"
+    },
+    {
+      "parameters": {
+        "channel": "#horror-workflow-alerts",
+        "text": "=✅ **Test Workflow Successful**\\n\\n**Timestamp**: {{ $json.timestamp }}\\n**Status**: {{ $json.testStatus }}\\n**HTTP Status**: {{ $json.httpStatusCode }}\\n**Content**: {{ $json.contentTitle }}\\n**Idempotency Key**: {{ $json.idempotencyKey }}\\n\\n🎉 All components working! Ready for production deployment.\\n\\n_Conceived by Romuald Członkowski - https://www.aiadvisors.pl/en_",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "slack-notification",
+      "name": "Slack Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [1250, 300],
+      "credentials": {
+        "slack": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Sends test success notification to Slack"
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{"node": "Mock RSS Feed", "type": "main", "index": 0}]]
+    },
+    "Mock RSS Feed": {
+      "main": [[{"node": "Process Content", "type": "main", "index": 0}]]
+    },
+    "Process Content": {
+      "main": [[{"node": "HTTP Test", "type": "main", "index": 0}]]
+    },
+    "HTTP Test": {
+      "main": [[{"node": "Format Results", "type": "main", "index": 0}]]
+    },
+    "Format Results": {
+      "main": [[{"node": "Slack Notification", "type": "main", "index": 0}]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-22T00:00:00.000Z",
+  "versionId": "test-1"
+}

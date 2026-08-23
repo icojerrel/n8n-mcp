@@ -1,0 +1,335 @@
+{
+  "name": "Horror YouTube Content Poster - Reddit Sourced",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "hours", "hoursInterval": 24}]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300],
+      "notesInFlow": true,
+      "notes": "Daily execution for Reddit horror community content"
+    },
+    {
+      "parameters": {
+        "url": "https://www.reddit.com/r/horror/hot.json?limit=25",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "reddit-fetch",
+      "name": "Fetch Reddit Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 300],
+      "notesInFlow": true,
+      "notes": "Fetches hot posts from r/horror subreddit"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and process Reddit horror posts\nconst crypto = require('crypto');\nconst response = $input.first().json;\nconst posts = response.data?.children || [];\nconst horrorContent = [];\n\nfor (const post of posts) {\n  const data = post.data;\n  \n  // Filter out stickied, removed, or low-score posts\n  if (data.stickied || data.over_18 || data.score < 50) {\n    continue;\n  }\n  \n  // Create content hash\n  const contentHash = crypto\n    .createHash('md5')\n    .update(data.title + data.url)\n    .digest('hex');\n  \n  const content = {\n    idempotencyKey: `reddit-${contentHash}`,\n    title: data.title,\n    link: data.url,\n    redditUrl: `https://reddit.com${data.permalink}`,\n    description: data.selftext || data.title,\n    pubDate: new Date(data.created_utc * 1000).toISOString(),\n    author: data.author,\n    subreddit: data.subreddit,\n    upvotes: data.score,\n    numComments: data.num_comments,\n    categories: ['horror', 'reddit', 'community'],\n    horrorTags: extractHorrorTags(data.title, data.link),\n    engagementScore: calculateRedditScore(data),\n    contentHash: contentHash,\n    source: 'Reddit'\n  };\n  horrorContent.push(content);\n}\n\nreturn horrorContent.map(item => ({ json: item }));\n\nfunction extractHorrorTags(title, url) {\n  const tags = ['horror', 'reddit'];\n  const titleLower = title.toLowerCase();\n  const urlLower = url.toLowerCase();\n  \n  const horrorKeywords = [\n    'movie', 'film', 'scary', 'creepy', 'story', \n    'true', 'paranormal', 'ghost', 'haunted', 'nightmare',\n    'recommendation', 'discussion', 'theory', 'analysis'\n  ];\n  \n  for (const keyword of horrorKeywords) {\n    if (titleLower.includes(keyword) && !tags.includes(keyword)) {\n      tags.push(keyword);\n    }\n  }\n  \n  // Detect content type from URL\n  if (urlLower.includes('youtube') || urlLower.includes('youtu.be')) {\n    tags.push('video');\n  } else if (urlLower.includes('imgur') || urlLower.includes('.jpg') || urlLower.includes('.png')) {\n    tags.push('image');\n  } else if (urlLower.includes('reddit.com')) {\n    tags.push('discussion');\n  }\n  \n  return tags.slice(0, 8);\n}\n\nfunction calculateRedditScore(data) {\n  // Calculate engagement score from Reddit metrics\n  let score = 50;\n  \n  // Upvotes contribution (max 30 points)\n  score += Math.min(data.score / 10, 30);\n  \n  // Comments contribution (max 20 points)\n  score += Math.min(data.num_comments / 5, 20);\n  \n  \n  return Math.min(score, 100);\n}"
+      },
+      "id": "process-reddit",
+      "name": "Process Reddit Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "notesInFlow": true,
+      "notes": "Extracts and scores Reddit horror posts"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.engagementScore }}",
+              "rightValue": 70,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "leftValue": "={{ $json.upvotes }}",
+              "rightValue": 100,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "quality-filter",
+      "name": "Quality Filter",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [850, 300],
+      "notesInFlow": true,
+      "notes": "Filters by engagement score > 70 and upvotes > 100"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Select top performing content\nconst items = $input.all();\n\n// Sort by engagement score\nconst sorted = items.sort((a, b) => b.json.engagementScore - a.json.engagementScore);\n\n// Return top 5 posts\nreturn sorted.slice(0, 5);"
+      },
+      "id": "select-top",
+      "name": "Select Top Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300],
+      "notesInFlow": true,
+      "notes": "Selects top 5 performing Reddit posts"
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "id": "split-batches",
+      "name": "Split into Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1250, 300],
+      "notesInFlow": true,
+      "notes": "Processes top posts in batches"
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "model": "gpt-4",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a horror content expert specializing in creating engaging YouTube content from Reddit discussions. Transform community posts into compelling video content while giving credit to the original Reddit post and author."
+            },
+            {
+              "role": "user",
+              "content": "=Create a YouTube video title and description based on this Reddit horror post:\n\nTitle: {{ $json.title }}\n\nContent: {{ $json.description }}\n\nAuthor: u/{{ $json.author }}\n\nSubreddit: r/{{ $json.subreddit }}\n\nUpvotes: {{ $json.upvotes }}\n\nReddit URL: {{ $json.redditUrl }}\n\nRequirements:\n1. Create a catchy, horror-themed title (max 100 characters)\n2. Write an engaging description (250-350 characters)\n3. Include 8-12 relevant horror-related tags\n4. Credit the original Reddit post and author\n5. Include the Reddit URL for discussion\n6. Add a call-to-action to join the discussion\n\nReturn in JSON format:\n{\n  \"title\": \"Your title here\",\n  \"description\": \"Your description here\",\n  \"tags\": [\"tag1\", \"tag2\", ...],\n  \"categoryId\": 1\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.85,
+          "maxTokens": 600,
+          "timeout": 30000
+        }
+      },
+      "id": "ai-enhancer",
+      "name": "AI Content Enhancer",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.3,
+      "position": [1450, 200],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "AI enhancement with Reddit attribution",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare YouTube data with Reddit metadata\nconst aiResponse = $input.first().json;\nconst originalContent = $input.first().json;\nlet parsedContent;\n\ntry {\n  parsedContent = typeof aiResponse.message === 'string' \n    ? JSON.parse(aiResponse.message) \n    : aiResponse.message;\n} catch (error) {\n  parsedContent = {\n    title: `From Reddit: ${originalContent.title}`,\n    description: `Discussion from r/${originalContent.subreddit}\\n\\nBy: u/${originalContent.author}\\n\\n${originalContent.description}`,\n    tags: originalContent.horrorTags,\n    categoryId: 1\n  };\n}\n\nconst horrorData = {\n  idempotencyKey: originalContent.idempotencyKey,\n  snippet: {\n    title: parsedContent.title,\n    description: parsedContent.description,\n    categoryId: parsedContent.categoryId || 1,\n    tags: parsedContent.tags || originalContent.horrorTags,\n    defaultLanguage: 'en',\n    defaultAudioLanguage: 'en'\n  },\n  status: {\n    privacyStatus: 'public',\n    selfDeclaredMadeForKids: false\n  },\n  contentDetails: {\n    caption: 'true'\n  },\n  metadata: {\n    uploadDate: new Date().toISOString(),\n    horrorGenre: true,\n    contentRating: 'mature',\n    originalLink: originalContent.redditUrl,\n    source: 'Reddit',\n    subreddit: originalContent.subreddit,\n    author: originalContent.author,\n    upvotes: originalContent.upvotes,\n    engagementScore: originalContent.engagementScore,\n    communitySourced: true\n  }\n};\n\nreturn { json: horrorData };"
+      },
+      "id": "prepare-youtube",
+      "name": "Prepare YouTube Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 200],
+      "notesInFlow": true,
+      "notes": "Prepares YouTube data with Reddit metadata"
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleApi",
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $json.snippet.title }}",
+        "description": "={{ $json.snippet.description }}",
+        "categoryId": "={{ $json.snippet.categoryId }}",
+        "tags": "={{ $json.snippet.tags }}",
+        "privacyStatus": "public",
+        "madeForKids": false,
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "youtube-upload",
+      "name": "YouTube Upload",
+      "type": "n8n-nodes-base.googleApi",
+      "typeVersion": 1,
+      "position": [1850, 200],
+      "credentials": {
+        "googleApi": {
+          "id": "google-youtube-credentials",
+          "name": "Google YouTube API"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Uploads Reddit-sourced horror content",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "url": "https://api.airtable.com/v0/{{ $env.AIRTABLE_BASE_ID }}/RedditHorror",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableApi",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "records",
+              "value": "={{ [{\"fields\": {\"Title\": $json.snippet.title, \"VideoID\": $json.id, \"UploadDate\": $json.metadata.uploadDate, \"Subreddit\": $json.metadata.subreddit, \"Author\": $json.metadata.author, \"Upvotes\": $json.metadata.upvotes, \"Tags\": $json.snippet.tags.join(', '), \"EngagementScore\": $json.metadata.engagementScore, \"IdempotencyKey\": $json.idempotencyKey}}] }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "airtable-catalog",
+      "name": "Airtable Catalog",
+      "type": "n8n-nodes-base.airtableApi",
+      "typeVersion": 1,
+      "position": [1850, 400],
+      "credentials": {
+        "airtableApi": {
+          "id": "airtable-credentials",
+          "name": "Airtable API"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Catalogs Reddit-sourced content with community metadata",
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discord",
+        "resource": "channel",
+        "operation": "sendMessage",
+        "channelId": "{{ $env.DISCORD_HORROR_CHANNEL_ID }}",
+        "text": "=🎃 **Reddit Horror Post Featured** 🎃\\n\\n{{ $json.snippet.title }}\\n\\nFrom r/{{ $json.metadata.subreddit }} by u/{{ $json.metadata.author }}\\n\\n{{ $json.upvotes }} upvotes on Reddit!\\n\\nJoin the discussion: {{ $json.metadata.originalLink }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "discord-notify",
+      "name": "Discord Notification",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 1,
+      "position": [1650, 400],
+      "credentials": {
+        "discord": {
+          "id": "discord-credentials",
+          "name": "Discord API"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Notifies Discord about Reddit content",
+      "retryOnFail": true,
+      "maxTries": 1
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [850, 500],
+      "notesInFlow": true,
+      "notes": "Catches all workflow errors"
+    },
+    {
+      "parameters": {
+        "channel": "#horror-workflow-alerts",
+        "text": "=❌ **Error in Reddit Horror Workflow**\\n\\n**Timestamp**: {{ $json.timestamp }}\\n**Node**: {{ $json.node }}\\n**Error**: {{ $json.error }}\\n\\n<{{ $json.executionId }}|View Execution>\\n\\n_Conceived by Romuald Członkowski - https://www.aiadvisors.pl/en_",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "slack-error",
+      "name": "Slack Error Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [1050, 500],
+      "credentials": {
+        "slack": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Sends error notifications",
+      "retryOnFail": true,
+      "maxTries": 2
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{"node": "Fetch Reddit Posts", "type": "main", "index": 0}]]
+    },
+    "Fetch Reddit Posts": {
+      "main": [[{"node": "Process Reddit Posts", "type": "main", "index": 0}]]
+    },
+    "Process Reddit Posts": {
+      "main": [[{"node": "Quality Filter", "type": "main", "index": 0}]]
+    },
+    "Quality Filter": {
+      "main": [[{"node": "Select Top Posts", "type": "main", "index": 0}]]
+    },
+    "Select Top Posts": {
+      "main": [[{"node": "Split into Batches", "type": "main", "index": 0}]]
+    },
+    "Split into Batches": {
+      "main": [[{"node": "AI Content Enhancer", "type": "main", "index": 0}]]
+    },
+    "AI Content Enhancer": {
+      "main": [[{"node": "Prepare YouTube Data", "type": "main", "index": 0}]]
+    },
+    "Prepare YouTube Data": {
+      "main": [[{"node": "YouTube Upload", "type": "main", "index": 0}]]
+    },
+    "YouTube Upload": {
+      "main": [[{"node": "Airtable Catalog", "type": "main", "index": 0}]]
+    },
+    "Error Trigger": {
+      "main": [[{"node": "Slack Error Alert", "type": "main", "index": 0}]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": ["horror", "youtube", "reddit", "community", "sourced"],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-22T00:00:00.000Z",
+  "versionId": "reddit-1"
+}

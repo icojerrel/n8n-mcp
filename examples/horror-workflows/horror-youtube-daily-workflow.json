@@ -1,0 +1,336 @@
+{
+  "name": "Daily Horror YouTube Content Poster",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "hours", "hoursInterval": 24}]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300],
+      "notesInFlow": true,
+      "notes": "Executes daily at 9 PM (optimal for horror content engagement)"
+    },
+    {
+      "parameters": {
+        "url": "https://bloody-disgusting.com/feed/",
+        "options": {}
+      },
+      "id": "horror-rss-feed",
+      "name": "Horror RSS Feed",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "notesInFlow": true,
+      "notes": "Fetches latest horror news and content from Bloody Disgusting"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and format horror content\nconst items = $input.all();\nconst horrorContent = [];\n\nfor (const item of items) {\n  const content = {\n    title: item.json.title || 'Untitled Horror Content',\n    link: item.json.link || item.json.guid || '',\n    description: item.json.contentSnippet || item.json.description || '',\n    pubDate: item.json.pubDate || new Date().toISOString(),\n    categories: item.json.categories || ['horror'],\n    horrorTags: generateHorrorTags(item.json.title),\n    engagementScore: calculateEngagementScore(item.json)\n  };\n  horrorContent.push(content);\n}\n\nreturn horrorContent.map(item => ({ json: item }));\n\nfunction generateHorrorTags(title) {\n  const horrorKeywords = [\n    'horror', 'scary', 'terror', 'nightmare', 'creepy',\n    'paranormal', 'supernatural', 'slasher', 'thriller',\n    'ghost', 'vampire', 'zombie', 'monster', 'dark'\n  ];\n  \n  const tags = ['horror'];\n  const titleLower = title.toLowerCase();\n  \n  for (const keyword of horrorKeywords) {\n    if (titleLower.includes(keyword) && !tags.includes(keyword)) {\n      tags.push(keyword);\n    }\n  }\n  \n  return tags.slice(0, 5); // Max 5 tags\n}\n\nfunction calculateEngagementScore(item) {\n  let score = 50; // Base score\n  \n  // Boost score for certain keywords\n  const highEngagementKeywords = ['exclusive', 'trailer', 'preview', 'new', 'breaking'];\n  const title = (item.title || '').toLowerCase();\n  \n  for (const keyword of highEngagementKeywords) {\n    if (title.includes(keyword)) {\n      score += 10;\n    }\n  }\n  \n  return Math.min(score, 100);\n}"
+      },
+      "id": "process-horror-content",
+      "name": "Process Horror Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "notesInFlow": true,
+      "notes": "Extracts and formats horror content with engagement scoring"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.engagementScore }}",
+              "rightValue": 60,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "quality-filter",
+      "name": "Quality Filter",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [850, 300],
+      "notesInFlow": true,
+      "notes": "Filters content by engagement score (minimum 60)"
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "model": "gpt-4",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a horror content expert specializing in creating engaging YouTube titles and descriptions. Your task is to transform horror news into compelling, click-worthy content while maintaining accuracy and avoiding clickbait."
+            },
+            {
+              "role": "user",
+              "content": "=Create a YouTube video title and description for this horror content:\n\nTitle: {{ $json.title }}\n\nDescription: {{ $json.description }}\n\nTags: {{ $json.horrorTags.join(', ') }}\n\nRequirements:\n1. Create a catchy, horror-themed title (max 100 characters)\n2. Write an engaging description (200-300 characters)\n3. Include 5-10 relevant horror-related tags\n4. Maintain a dark, suspenseful tone\n5. Include a call-to-action for engagement\n\nReturn in JSON format:\n{\n  \"title\": \"Your title here\",\n  \"description\": \"Your description here\",\n  \"tags\": [\"tag1\", \"tag2\", ...],\n  \"categoryId\": 1\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.8,
+          "maxTokens": 500
+        }
+      },
+      "id": "ai-content-enhancer",
+      "name": "AI Content Enhancer",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.3,
+      "position": [1050, 200],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Uses GPT-4 to generate engaging horror titles and descriptions"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI response and prepare YouTube upload data\nconst aiResponse = $input.first().json;\nlet parsedContent;\n\ntry {\n  parsedContent = typeof aiResponse.message === 'string' \n    ? JSON.parse(aiResponse.message) \n    : aiResponse.message;\n} catch (error) {\n  // Fallback if JSON parsing fails\n  parsedContent = {\n    title: 'Horror Content - ' + new Date().toLocaleDateString(),\n    description: aiResponse.message || 'Daily horror content update',\n    tags: ['horror', 'scary', 'terror'],\n    categoryId: 1\n  };\n}\n\nconst horrorData = {\n  snippet: {\n    title: parsedContent.title || 'Untitled Horror Content',\n    description: parsedContent.description || 'Daily horror content',\n    categoryId: parsedContent.categoryId || 1, // Film & Animation\n    tags: parsedContent.tags || ['horror', 'scary', 'terror'],\n    defaultLanguage: 'en',\n    defaultAudioLanguage: 'en'\n  },\n  status: {\n    privacyStatus: 'public',\n    selfDeclaredMadeForKids: false\n  },\n  contentDetails: {\n    caption: 'true'\n  },\n  metadata: {\n    uploadDate: new Date().toISOString(),\n    horrorGenre: true,\n    contentRating: 'mature'\n  }\n};\n\nreturn { json: horrorData };"
+      },
+      "id": "prepare-youtube-data",
+      "name": "Prepare YouTube Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 200],
+      "notesInFlow": true,
+      "notes": "Parses AI response and formats data for YouTube upload"
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleApi",
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $json.snippet.title }}",
+        "description": "={{ $json.snippet.description }}",
+        "categoryId": "={{ $json.snippet.categoryId }}",
+        "tags": "={{ $json.snippet.tags }}",
+        "privacyStatus": "public",
+        "madeForKids": false,
+        "options": {}
+      },
+      "id": "youtube-upload",
+      "name": "YouTube Upload",
+      "type": "n8n-nodes-base.googleApi",
+      "typeVersion": 1,
+      "position": [1450, 200],
+      "credentials": {
+        "googleApi": {
+          "id": "google-youtube-credentials",
+          "name": "Google YouTube API"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Uploads horror content video to YouTube"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.link }}",
+        "options": {}
+      },
+      "id": "fetch-horror-media",
+      "name": "Fetch Horror Media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [650, 450],
+      "notesInFlow": true,
+      "notes": "Downloads horror media/images from content source"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format tweet for horror content promotion\nconst horrorContent = $input.first().json;\n\nconst tweet = {\n  text: `🎃 ${horrorContent.title}\\n\\n${horrorContent.description.substring(0, 100)}...\\n\\n🔗 ${horrorContent.link}\\n\\n#Horror #Scary #Terror #HorrorCommunity`,\n  media: horrorContent.imageUrl || null\n};\n\nreturn { json: tweet };"
+      },
+      "id": "prepare-tweet",
+      "name": "Prepare Tweet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400],
+      "notesInFlow": true,
+      "notes": "Formats horror content for Twitter promotion"
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twitterApi",
+        "resource": "tweet",
+        "operation": "create",
+        "text": "={{ $json.text }}",
+        "media": "={{ $json.media }}",
+        "options": {}
+      },
+      "id": "twitter-post",
+      "name": "Twitter Post",
+      "type": "n8n-nodes-base.twitterApi",
+      "typeVersion": 1,
+      "position": [1450, 400],
+      "credentials": {
+        "twitterApi": {
+          "id": "twitter-credentials",
+          "name": "Twitter API"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Posts horror content promotion to Twitter"
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discord",
+        "resource": "channel",
+        "operation": "sendMessage",
+        "channelId": "{{ $env.DISCORD_HORROR_CHANNEL_ID }}",
+        "text": "=@daily-horror-notification",
+        "options": {}
+      },
+      "id": "discord-notification",
+      "name": "Discord Notification",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 1,
+      "position": [1450, 600],
+      "credentials": {
+        "discord": {
+          "id": "discord-credentials",
+          "name": "Discord API"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Notifies Discord community about new horror content"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log successful upload and track analytics\nconst uploadResult = $input.first().json;\n\nconst logEntry = {\n  timestamp: new Date().toISOString(),\n  videoId: uploadResult.id || 'unknown',\n  status: 'success',\n  platform: 'youtube',\n  contentType: 'horror',\n  scheduledPost: true,\n  engagement: {\n    views: 0,\n    likes: 0,\n    comments: 0\n  }\n};\n\nconsole.log('✅ Horror content uploaded successfully:', logEntry);\n\nreturn { json: logEntry };"
+      },
+      "id": "log-success",
+      "name": "Log Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 200],
+      "notesInFlow": true,
+      "notes": "Logs successful upload and tracks analytics"
+    },
+    {
+      "parameters": {
+        "url": "https://api.airtable.com/v0/{{ $env.AIRTABLE_BASE_ID }}/HorrorContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableApi",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "records",
+              "value": "={{ [{\"fields\": {\"Title\": $json.snippet.title, \"VideoID\": $json.id, \"UploadDate\": $json.metadata.uploadDate, \"Tags\": $json.snippet.tags.join(', '), \"EngagementScore\": $json.engagementScore}}] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "airtable-catalog",
+      "name": "Airtable Catalog",
+      "type": "n8n-nodes-base.airtableApi",
+      "typeVersion": 1,
+      "position": [1650, 400],
+      "credentials": {
+        "airtableApi": {
+          "id": "airtable-credentials",
+          "name": "Airtable API"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Catalogs horror content in Airtable for tracking"
+    },
+    {
+      "parameters": {
+        "channel": "#horror-workflow-alerts",
+        "text": "=❌ Error in horror workflow: {{ $json.error }}\n\nNode: {{ $json.node }}\nTimestamp: {{ $json.timestamp }}",
+        "options": {}
+      },
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [850, 500],
+      "credentials": {
+        "slack": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Sends error notifications to Slack"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{"node": "Horror RSS Feed", "type": "main", "index": 0}]]
+    },
+    "Horror RSS Feed": {
+      "main": [[{"node": "Process Horror Content", "type": "main", "index": 0}]]
+    },
+    "Process Horror Content": {
+      "main": [[{"node": "Quality Filter", "type": "main", "index": 0}]]
+    },
+    "Quality Filter": {
+      "main": [
+        [{"node": "AI Content Enhancer", "type": "main", "index": 0}],
+        [{"node": "Fetch Horror Media", "type": "main", "index": 0}]
+      ]
+    },
+    "AI Content Enhancer": {
+      "main": [[{"node": "Prepare YouTube Data", "type": "main", "index": 0}]]
+    },
+    "Prepare YouTube Data": {
+      "main": [[{"node": "YouTube Upload", "type": "main", "index": 0}]]
+    },
+    "YouTube Upload": {
+      "main": [[{"node": "Log Success", "type": "main", "index": 0}]]
+    },
+    "Log Success": {
+      "main": [[{"node": "Airtable Catalog", "type": "main", "index": 0}]]
+    },
+    "Fetch Horror Media": {
+      "main": [[{"node": "Prepare Tweet", "type": "main", "index": 0}]]
+    },
+    "Prepare Tweet": {
+      "main": [[{"node": "Twitter Post", "type": "main", "index": 0}]]
+    },
+    "Twitter Post": {
+      "main": [[{"node": "Discord Notification", "type": "main", "index": 0}]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "error-handler"
+  },
+  "staticData": null,
+  "tags": ["horror", "youtube", "automation", "daily", "content"],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-22T00:00:00.000Z",
+  "versionId": "1"
+}
